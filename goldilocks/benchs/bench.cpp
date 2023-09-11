@@ -11,6 +11,9 @@
 #include <math.h> /* ceil */
 #include "omp.h"
 
+#include <iostream>
+#include<chrono>
+
 #define FFT_SIZE (1 << 23)
 
 #define NUM_HASHES 2097152
@@ -22,6 +25,8 @@
 #define NPHASES_NTT 2
 #define NPHASES_LDE 2
 #define NBLOCKS 1
+
+#define NUM_ARITH 0x80000000
 
 static void POSEIDON_BENCH_FULL(benchmark::State &state)
 {
@@ -886,6 +891,194 @@ static void EXTENDEDPOL_BENCH(benchmark::State &state)
     free(c);
 }
 
+static void ADD_AVX2_BENCH(benchmark::State &state)
+{
+    uint64_t num_columns = 2;
+    // uint64_t num_columns = 2 * state.range(0); // multi threads
+    uint64_t LIMBS = 4;
+
+    Goldilocks::Element *a = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+    Goldilocks::Element *b = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+
+    #pragma omp parallel for
+    for (uint64_t k = 0; k < num_columns; k++)
+    {
+        uint64_t offset = k * LIMBS;
+        a[offset] = Goldilocks::one();
+        a[offset + 1] = Goldilocks::one();
+        b[offset] = Goldilocks::one();
+        b[offset + 1] = Goldilocks::one();
+        for (uint64_t i = 2; i < LIMBS; i++)
+        {
+            b[offset + i] = b[offset + i - 1] + b[offset + i - 2];
+        }
+    }
+    for (auto _ : state)
+    {
+// #pragma omp parallel for num_threads(state.range(0))
+        auto start = std::chrono::system_clock::now();
+        for (u_int64_t i = 0; i < num_columns; i++)
+        {
+            u_int64_t offset = i * LIMBS;
+            __m256i a_;
+            __m256i b_;
+            Goldilocks::load_avx(a_, &a[offset]);
+            Goldilocks::load_avx(b_, &b[offset]);
+            for (uint64_t j = 0; j < 1000000000 / LIMBS; j++) {
+                Goldilocks::add_avx(a_, a_, b_);
+            }
+            Goldilocks::store_avx(&a[offset], a_);
+        }
+        auto end = std::chrono::system_clock::now();
+        std::cout << (double)(end - start).count() / 1000000000 / num_columns << "ns / op" << std::endl;
+    }
+    
+    free(a);
+    free(b);
+}
+
+#ifdef __AVX512__
+static void ADD_AVX512_BENCH(benchmark::State &state)
+{
+    uint64_t num_columns = 2;
+    // uint64_t num_columns = 2 * state.range(0); // multi threads
+    uint64_t LIMBS = 8;
+
+    Goldilocks::Element *a = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+    Goldilocks::Element *b = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+
+    #pragma omp parallel for
+    for (uint64_t k = 0; k < num_columns; k++)
+    {
+        uint64_t offset = k * LIMBS;
+        a[offset] = Goldilocks::one();
+        a[offset + 1] = Goldilocks::one();
+        b[offset] = Goldilocks::one();
+        b[offset + 1] = Goldilocks::one();
+        for (uint64_t i = 2; i < LIMBS; i++)
+        {
+            b[offset + i] = b[offset + i - 1] + b[offset + i - 2];
+        }
+    }
+    for (auto _ : state)
+    {
+        auto start = std::chrono::system_clock::now();
+// #pragma omp parallel for num_threads(state.range(0))
+        for (u_int64_t i = 0; i < num_columns; i++)
+        {
+            u_int64_t offset = i * LIMBS;
+            __m512i a_;
+            __m512i b_;
+            Goldilocks::load_avx512(a_, &a[offset]);
+            Goldilocks::load_avx512(b_, &b[offset]);
+            for (uint64_t j = 0; j < 1000000000 / LIMBS; j++) {
+                Goldilocks::add_avx512(a_, a_, b_);
+            }
+            Goldilocks::store_avx512(&a[offset], a_);
+        }
+        auto end = std::chrono::system_clock::now();
+        std::cout << (double)(end - start).count() / 1000000000 / num_columns << "ns / op" << std::endl;
+    }
+    
+    free(a);
+    free(b);
+}
+#endif
+
+static void MUL_AVX2_BENCH(benchmark::State &state)
+{
+    uint64_t num_columns = 2;
+    // uint64_t num_columns = 2 * state.range(0); // multi threads
+    uint64_t LIMBS = 4;
+
+    Goldilocks::Element *a = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+    Goldilocks::Element *b = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+
+    #pragma omp parallel for
+    for (uint64_t k = 0; k < num_columns; k++)
+    {
+        uint64_t offset = k * LIMBS;
+        a[offset] = Goldilocks::one();
+        a[offset + 1] = Goldilocks::one();
+        b[offset] = Goldilocks::one();
+        b[offset + 1] = Goldilocks::one();
+        for (uint64_t i = 2; i < LIMBS; i++)
+        {
+            b[offset + i] = b[offset + i - 1] + b[offset + i - 2];
+        }
+    }
+    for (auto _ : state)
+    {
+        auto start = std::chrono::system_clock::now();
+// #pragma omp parallel for num_threads(state.range(0))
+        for (u_int64_t i = 0; i < num_columns; i++)
+        {
+            u_int64_t offset = i * LIMBS;
+            __m256i a_;
+            __m256i b_;
+            Goldilocks::load_avx(a_, &a[offset]);
+            Goldilocks::load_avx(b_, &b[offset]);
+            for (uint64_t j = 0; j < 1000000000 / LIMBS; j++) {
+                Goldilocks::mult_avx(a_, a_, b_);
+            }
+            Goldilocks::store_avx(&a[offset], a_);
+        }
+        auto end = std::chrono::system_clock::now();
+        std::cout << (double)(end - start).count() / 1000000000 / num_columns << "ns / op" << std::endl;
+    }
+    
+    free(a);
+    free(b);
+}
+
+#ifdef __AVX512__
+static void MUL_AVX512_BENCH(benchmark::State &state)
+{
+    uint64_t num_columns = 2;
+    // uint64_t num_columns = 2 * state.range(0); // multi threads
+    uint64_t LIMBS = 8;
+
+    Goldilocks::Element *a = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+    Goldilocks::Element *b = (Goldilocks::Element *)malloc(num_columns * LIMBS * sizeof(Goldilocks::Element));
+
+    #pragma omp parallel for
+    for (uint64_t k = 0; k < num_columns; k++)
+    {
+        uint64_t offset = k * LIMBS;
+        a[offset] = Goldilocks::one();
+        a[offset + 1] = Goldilocks::one();
+        b[offset] = Goldilocks::one();
+        b[offset + 1] = Goldilocks::one();
+        for (uint64_t i = 2; i < LIMBS; i++)
+        {
+            b[offset + i] = b[offset + i - 1] + b[offset + i - 2];
+        }
+    }
+    for (auto _ : state)
+    {
+        auto start = std::chrono::system_clock::now();
+// #pragma omp parallel for num_threads(state.range(0))
+        for (u_int64_t i = 0; i < num_columns; i++)
+        {
+            u_int64_t offset = i * LIMBS;
+            __m512i a_;
+            __m512i b_;
+            Goldilocks::load_avx512(a_, &a[offset]);
+            Goldilocks::load_avx512(b_, &b[offset]);
+            for (uint64_t j = 0; j < 1000000000 / LIMBS; j++) {
+                Goldilocks::mult_avx512_8(a_, a_, b_);
+            }
+            Goldilocks::store_avx512(&a[offset], a_);
+        }
+        auto end = std::chrono::system_clock::now();
+        std::cout << (double)(end - start).count() / 1000000000 / num_columns << "ns / op" << std::endl;
+    }
+    
+    free(a);
+    free(b);
+}
+#endif
+
 BENCHMARK(POSEIDON_BENCH_FULL)
     ->Unit(benchmark::kMicrosecond)
     ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
@@ -995,6 +1188,30 @@ BENCHMARK(EXTENDEDPOL_BENCH)
     ->Unit(benchmark::kSecond)
     ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
     ->UseRealTime();
+
+BENCHMARK(ADD_AVX2_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
+    ->UseRealTime();
+
+#ifdef __AVX512__
+BENCHMARK(ADD_AVX512_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
+    ->UseRealTime();
+#endif
+
+BENCHMARK(MUL_AVX2_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
+    ->UseRealTime();
+
+#ifdef __AVX512__
+BENCHMARK(MUL_AVX512_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
+    ->UseRealTime();
+#endif
 
 BENCHMARK_MAIN();
 
