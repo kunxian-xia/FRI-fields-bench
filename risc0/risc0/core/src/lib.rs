@@ -18,7 +18,7 @@
 //! most notably representing finite field elements and enabling finite field
 //! arithmetic.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+// #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs)]
 
 extern crate alloc;

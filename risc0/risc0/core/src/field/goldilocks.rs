@@ -598,6 +598,11 @@ mod tests {
     use super::{field, Elem, ExtElem, P};
     use crate::field::Elem as FieldElem;
 
+    use std::{
+        println,
+        time::{Duration, Instant},
+    };
+
     #[test]
     /// Roots of unity tests common to all fields under test
     pub fn roots_of_unity() {
@@ -841,5 +846,47 @@ mod tests {
             let vec: Vec<u32> = vec![rng.gen(), rng.gen(), rng.gen(), rng.gen()];
             assert_eq!(vec, ExtElem::from_u32_words(&vec).to_u32_words());
         }
+    }
+
+    #[test]
+    fn test_elem_mul() {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(2);
+        let elem1 = Elem::random(&mut rng);
+        let mut elem2: Elem = Elem::random(&mut rng);
+
+        let start_timer = Instant::now();
+        let mut total_timer = Duration::new(0, 0);
+        for _ in 0..10 {
+            for _ in 0..1000000000 {
+                elem2 *= elem1;
+            }
+        }
+        total_timer += start_timer.elapsed();
+        let total_timer = total_timer.subsec_nanos() as f64 / 1_000_000_000f64
+            + (total_timer.as_secs() as f64) / 10 as f64;
+        assert_eq!(elem2, Elem::from_u32_words(&elem2.to_u32_words()));
+        println!("For Debug{:?}", elem2);
+        println!("goldilocks filed modular mul operation throughput: {:?} ns/op", total_timer);
+    }
+
+    #[test]
+    fn test_elem_add() {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(2);
+        let elem1 = Elem::random(&mut rng);
+        let mut elem2: Elem = Elem::random(&mut rng);
+
+        let start_timer = Instant::now();
+        let mut total_timer = Duration::new(0, 0);
+        for _ in 0..10 {
+            for _ in 0..1000000000 {
+                elem2 += elem1;
+            }
+        }
+        total_timer += start_timer.elapsed();
+        let total_timer = total_timer.subsec_nanos() as f64 / 1_000_000_000f64
+            + (total_timer.as_secs() as f64) / 10 as f64;
+        assert_eq!(elem2, Elem::from_u32_words(&elem2.to_u32_words()));
+        println!("For Debug{:?}", elem2);
+        println!("goldilocks filed modular add operation throughput: {:?} ns/op", total_timer);
     }
 }
