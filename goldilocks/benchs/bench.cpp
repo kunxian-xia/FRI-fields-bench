@@ -1335,6 +1335,7 @@ static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
         for (int i = 0; i < num_iters; i++) 
         {
             Goldilocks3::mul_avx512(c, a, b);
+            Goldilocks::store_avx512(&c_arr[0], c[0]);
         }
         auto end = std::chrono::system_clock::now();
         std::cout << (double) (end - start).count() / num_iters / AVX512_SIZE_ << "ns / op" << std::endl;
