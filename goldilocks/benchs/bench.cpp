@@ -908,6 +908,7 @@ static void ADD_BENCH(benchmark::State &state)
         a[offset] = Goldilocks::fromString(in3);
         b[offset] = Goldilocks::fromString(in3);
     }
+    int num_iters = 1000 * 1000 * 1000;
     for (auto _ : state)
     {
 // #pragma omp parallel for num_threads(state.range(0))
@@ -915,7 +916,7 @@ static void ADD_BENCH(benchmark::State &state)
         for (u_int64_t i = 0; i < num_columns; i++)
         {
             u_int64_t offset = i * LIMBS;
-            for (uint64_t j = 0; j < 1000000000 / LIMBS; j++) {
+            for (uint64_t j = 0; j < num_iters / LIMBS; j++) {
                 Goldilocks::add(a[offset], a[offset], b[offset]);
             }
         }
@@ -1151,6 +1152,66 @@ static void MUL_AVX512_BENCH(benchmark::State &state)
 }
 #endif
 
+static void CUBIC_ADD_BENCH(benchmark::State &state)
+{
+    Goldilocks3::Element a;
+    Goldilocks3::Element b;
+
+    // half_p = (p-1)/ 2
+    // a = [half_p, half_p+1, half_p+2]
+    std::string a_str[3] = {
+        std::string("9223372034707292160"), 
+        std::string("9223372034707292161"),
+        std::string("9223372034707292162")
+    };
+    Goldilocks3::fromString(a, a_str, 10);
+
+    // b = [half_p+3, half_p+4, half_p+5]
+    std::string b_str[3] = {
+        "9223372034707292163",
+        "9223372034707292164",
+        "9223372034707292165"
+    };
+    Goldilocks3::fromString(b, b_str, 10);
+
+    int num_iters = 1000 * 1000 * 1000;
+    for (auto _: state)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        Goldilocks3::Element c;
+        for (int i = 0; i < num_iters; i++)
+        {
+            Goldilocks3::add(c, a, b);
+            Goldilocks3::copy(a, b);
+            Goldilocks3::copy(b, c);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << (double)(end - start).count() / num_iters << "ns / op" << std::endl;
+    }
+}
+
+static void CUBIC_ADD_AVX2_BENCH()
+{
+
+}
+
+static void CUBIC_MUL_BENCH()
+{
+
+}
+
+static void CUBIC_MUL_AVX2_BENCH()
+{
+
+}
+
+#ifdef __AVX512__
+static void CUBIC_MUL_AVX512_BENCH()
+{
+
+}
+#endif
+
 BENCHMARK(POSEIDON_BENCH_FULL)
     ->Unit(benchmark::kMicrosecond)
     ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
@@ -1294,6 +1355,10 @@ BENCHMARK(MUL_AVX512_BENCH)
     ->DenseRange(omp_get_max_threads() / 2, omp_get_max_threads(), omp_get_max_threads() / 2)
     ->UseRealTime();
 #endif
+
+BENCHMARK(CUBIC_ADD_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->UseRealTime();
 
 BENCHMARK_MAIN();
 
