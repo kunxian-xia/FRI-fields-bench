@@ -1326,21 +1326,25 @@ static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
 
         Goldilocks3::Element_avx512 a, b, c;
 
-        for (int j = 0; j < FIELD_EXTENSION; j++)
-        {
-            Goldilocks::load_avx512(a[j], &a_arr[j* AVX512_SIZE_]);
-            Goldilocks::load_avx512(b[j], &b_arr[j* AVX512_SIZE_]);
-        }
+       
         auto start = std::chrono::system_clock::now();
         for (int i = 0; i < num_iters; i++) 
         {
+            for (int j = 0; j < FIELD_EXTENSION; j++)
+            {
+                Goldilocks::load_avx512(a[j], &a_arr[j* AVX512_SIZE_]);
+                Goldilocks::load_avx512(b[j], &b_arr[j* AVX512_SIZE_]);
+            }
             Goldilocks3::mul_avx512(c, a, b);
+            for (int j = 0; j < FIELD_EXTENSION; j++)
+            {
+                Goldilocks::store_avx512(&c_arr[j * AVX512_SIZE_], c[j]);
+            }
+            memcpy((void*) a_arr, (void *)b_arr, FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+            memcpy((void*) b_arr, (void *)c_arr, FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
         }
         auto end = std::chrono::system_clock::now();
-        for (int j = 0; j < FIELD_EXTENSION; j++)
-        {
-            Goldilocks::store_avx512(&c_arr[j * AVX512_SIZE_], c[j]);
-        }
+        
         std::cout << (double) (end - start).count() / num_iters / AVX512_SIZE_ << "ns / op" << std::endl;
     }
 
