@@ -1312,6 +1312,7 @@ static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
 {
     Goldilocks::Element *a_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
     Goldilocks::Element *b_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+    Goldilocks::Element *c_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
 
     for (int i = 0; i < FIELD_EXTENSION * AVX512_SIZE_; i++)
     {
@@ -1323,7 +1324,7 @@ static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
     {
         int num_iters = 1000 * 1000 * 1000;
 
-        Goldilocks3::Element_avx512 a, b;
+        Goldilocks3::Element_avx512 a, b, c;
         for (int j = 0; j < FIELD_EXTENSION; j++)
         {
             Goldilocks::load_avx512(a[j], &a_arr[j* AVX512_SIZE_]);
@@ -1333,6 +1334,7 @@ static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
         auto start = std::chrono::system_clock::now();
         for (int i = 0; i < num_iters; i++) 
         {
+            Goldilocks3::mul_avx512(c, a, b);
         }
         auto end = std::chrono::system_clock::now();
         std::cout << (double) (end - start).count() / num_iters / AVX512_SIZE_ << "ns / op" << std::endl;
