@@ -1186,22 +1186,124 @@ static void CUBIC_ADD_BENCH(benchmark::State &state)
             Goldilocks3::copy(b, c);
         }
         auto end = std::chrono::high_resolution_clock::now();
+        std::cout << Goldilocks3::toString(c) << std::endl;
         std::cout << (double)(end - start).count() / num_iters << "ns / op" << std::endl;
     }
 }
 
-static void CUBIC_ADD_AVX2_BENCH()
+static void CUBIC_ADD_AVX2_BENCH(benchmark::State &state)
 {
+    Goldilocks::Element *a_arr = (Goldilocks::Element *) malloc(AVX_SIZE_ * sizeof(Goldilocks3::Element));
+    Goldilocks::Element *b_arr = (Goldilocks::Element *) malloc(AVX_SIZE_ * sizeof(Goldilocks3::Element));
+    Goldilocks::Element *c_arr = (Goldilocks::Element *) malloc(AVX_SIZE_ * sizeof(Goldilocks3::Element));
 
+    Goldilocks3::Element x;
+    Goldilocks3::fromString(x, {
+        "9223372034707292163",
+        "9223372034707292164",
+        "9223372034707292165"
+    }, 10);
+
+    for (int j = 0; j < FIELD_EXTENSION; j++) 
+    {
+        for (int i = 0; i < AVX_SIZE_; i++)
+        {
+            a_arr[j*AVX_SIZE_ + i] = x[j] + Goldilocks::fromS32(i);
+            b_arr[j*AVX_SIZE_ + i] = x[j] + Goldilocks::fromS32(i+AVX_SIZE_);
+        }
+    }
+
+    int num_iters = 1000 * 1000 * 1000;
+    for (auto _: state) 
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < num_iters; i++) 
+        {
+            Goldilocks3::add_avx(c_arr, a_arr, b_arr);
+            Goldilocks3::copy_batch(a_arr, b_arr);
+            Goldilocks3::copy_batch(b_arr, c_arr);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << Goldilocks::toString(c_arr, (uint64_t) (AVX_SIZE_ * FIELD_EXTENSION), 10) << std::endl;
+        std::cout << (double) (end - start).count() / num_iters / AVX_SIZE_ << "ns / op" << std::endl;
+    }
 }
 
-static void CUBIC_MUL_BENCH()
+static void CUBIC_MUL_BENCH(benchmark::State &state)
 {
+    Goldilocks3::Element a;
+    Goldilocks3::Element b;
 
+    // half_p = (p-1)/ 2
+    // a = [half_p, half_p+1, half_p+2]
+    std::string a_str[3] = {
+        std::string("9223372034707292160"), 
+        std::string("9223372034707292161"),
+        std::string("9223372034707292162")
+    };
+    Goldilocks3::fromString(a, a_str, 10);
+
+    // b = [half_p+3, half_p+4, half_p+5]
+    std::string b_str[3] = {
+        "9223372034707292163",
+        "9223372034707292164",
+        "9223372034707292165"
+    };
+    Goldilocks3::fromString(b, b_str, 10);
+
+    int num_iters = 1000 * 1000 * 1000;
+    for (auto _: state)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        Goldilocks3::Element c;
+        for (int i = 0; i < num_iters; i++)
+        {
+            Goldilocks3::mul(c, a, b);
+            Goldilocks3::copy(a, b);
+            Goldilocks3::copy(b, c);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << Goldilocks3::toString(c) << std::endl;
+        std::cout << (double)(end - start).count() / num_iters << "ns / op" << std::endl;
+    }
 }
 
-static void CUBIC_MUL_AVX2_BENCH()
+static void CUBIC_MUL_AVX2_BENCH(benchmark::State &state)
 {
+    Goldilocks::Element *a_arr = (Goldilocks::Element *) malloc(AVX_SIZE_ * sizeof(Goldilocks3::Element));
+    Goldilocks::Element *b_arr = (Goldilocks::Element *) malloc(AVX_SIZE_ * sizeof(Goldilocks3::Element));
+    Goldilocks::Element *c_arr = (Goldilocks::Element *) malloc(AVX_SIZE_ * sizeof(Goldilocks3::Element));
+
+    Goldilocks3::Element x;
+    Goldilocks3::fromString(x, {
+        "9223372034707292163",
+        "9223372034707292164",
+        "9223372034707292165"
+    }, 10);
+
+    for (int j = 0; j < FIELD_EXTENSION; j++) 
+    {
+        for (int i = 0; i < AVX_SIZE_; i++)
+        {
+            a_arr[j*AVX_SIZE_ + i] = x[j] + Goldilocks::fromS32(i);
+            b_arr[j*AVX_SIZE_ + i] = x[j] + Goldilocks::fromS32(i+AVX_SIZE_);
+        }
+    }
+
+    int num_iters = 1000 * 1000 * 1000;
+    for (auto _: state) 
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < num_iters; i++) 
+        {
+            Goldilocks3::mul_avx(c_arr, a_arr, b_arr);
+            Goldilocks3::copy_batch(a_arr, b_arr);
+            Goldilocks3::copy_batch(b_arr, c_arr);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << Goldilocks::toString(c_arr, (uint64_t) (AVX_SIZE_ * FIELD_EXTENSION), 10) << std::endl;
+        std::cout << (double) (end - start).count() / num_iters / AVX_SIZE_ << "ns / op" << std::endl;
+    }
 
 }
 
@@ -1357,6 +1459,18 @@ BENCHMARK(MUL_AVX512_BENCH)
 #endif
 
 BENCHMARK(CUBIC_ADD_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->UseRealTime();
+
+BENCHMARK(CUBIC_ADD_AVX2_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->UseRealTime();
+
+BENCHMARK(CUBIC_MUL_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->UseRealTime();
+
+BENCHMARK(CUBIC_MUL_AVX2_BENCH)
     ->Unit(benchmark::kSecond)
     ->UseRealTime();
 
