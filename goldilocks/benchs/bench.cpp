@@ -1308,6 +1308,46 @@ static void CUBIC_MUL_AVX2_BENCH(benchmark::State &state)
 }
 
 #ifdef __AVX512__
+static void CUBIC_ADD_AVX512_BENCH(benchmark::State &state)
+{
+    Goldilocks::Element *a_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+    Goldilocks::Element *b_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+    Goldilocks::Element *c_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+
+    for (int i = 0; i < FIELD_EXTENSION * AVX512_SIZE_; i++)
+    {
+        a_arr[i] = Goldilocks::fromS32(i);
+        b_arr[i] = Goldilocks::fromS32(i+FIELD_EXTENSION * AVX512_SIZE_);
+    }
+
+    for (auto _: state) 
+    {
+        int num_iters = 1000 * 1000 * 1000;
+
+        Goldilocks3::Element_avx512 a, b, c;
+
+       
+        auto start = std::chrono::system_clock::now();
+        for (int i = 0; i < num_iters; i++) 
+        {
+            for (int j = 0; j < FIELD_EXTENSION; j++)
+            {
+                Goldilocks::load_avx512(a[j], &a_arr[j* AVX512_SIZE_]);
+                Goldilocks::load_avx512(b[j], &b_arr[j* AVX512_SIZE_]);
+            }
+            Goldilocks3::add_avx512(c, a, b);
+            for (int j = 0; j < FIELD_EXTENSION; j++)
+            {
+                Goldilocks::store_avx512(&c_arr[j * AVX512_SIZE_], c[j]);
+            }
+            memcpy((void*) a_arr, (void *)b_arr, FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+            memcpy((void*) b_arr, (void *)c_arr, FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
+        }
+        auto end = std::chrono::system_clock::now();
+        
+        std::cout << (double) (end - start).count() / num_iters / AVX512_SIZE_ << "ns / op" << std::endl;
+    }
+}
 static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
 {
     Goldilocks::Element *a_arr = (Goldilocks::Element *) malloc(FIELD_EXTENSION * AVX512_SIZE_ * sizeof(Goldilocks::Element));
@@ -1347,7 +1387,6 @@ static void CUBIC_MUL_AVX512_BENCH(benchmark::State &state)
         
         std::cout << (double) (end - start).count() / num_iters / AVX512_SIZE_ << "ns / op" << std::endl;
     }
-
 }
 #endif
 
@@ -1512,6 +1551,10 @@ BENCHMARK(CUBIC_MUL_AVX2_BENCH)
     ->UseRealTime();
 
 #ifdef __AVX512__
+BENCHMARK(CUBIC_ADD_AVX512_BENCH)
+    ->Unit(benchmark::kSecond)
+    ->UseRealTime();
+
 BENCHMARK(CUBIC_MUL_AVX512_BENCH)
     ->Unit(benchmark::kSecond)
     ->UseRealTime();
